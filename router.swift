@@ -1,7 +1,8 @@
+// SwiftUI Custom Navigation (Flutter-like Navigator 2.0 Style)
 import SwiftUI
 import Combine
 
-// MARK: - 1) Tüm sayfalar enum’da tanımlanır
+// MARK: - 1) Define all pages in a type-safe enum
 enum AppPage: Identifiable {
     case home
     case login
@@ -10,10 +11,10 @@ enum AppPage: Identifiable {
 
     var id: String {
         switch self {
-        case .home:                return "home"
-        case .login:               return "login"
-        case .profile(let id):     return "profile-\(id)"
-        case .detail(let id, _):   return "detail-\(id)"
+        case .home: return "home"
+        case .login: return "login"
+        case .profile(let id): return "profile-\(id)"
+        case .detail(let id, _): return "detail-\(id)"
         }
     }
 
@@ -32,13 +33,14 @@ enum AppPage: Identifiable {
     }
 }
 
-// MARK: - 2) Router: enum tabanlı navigation yönetimi
+// MARK: - 2) Router to manage navigation stack programmatically
 class Router: ObservableObject {
-    @Published private(set) var pages: [AppPage] = []
+    @Published private(set) var pages: [AppPage] = [.home]
     static let instance = Router()
     private init() {}
 
     var pagesCount: Int { pages.count }
+    var canPop: Bool { pages.count > 1 }
 
     func push(_ page: AppPage) {
         withAnimation {
@@ -47,10 +49,9 @@ class Router: ObservableObject {
     }
 
     func pop() {
+        guard canPop else { return }
         withAnimation {
-            if !pages.isEmpty {
-                pages.removeLast()
-            }
+            pages.removeLast()
         }
     }
 
@@ -61,8 +62,7 @@ class Router: ObservableObject {
 
     func replaceAll(with page: AppPage) {
         withAnimation {
-            pages.removeAll()
-            pages.append(page)
+            pages = [page]
         }
     }
 
@@ -88,23 +88,24 @@ class Router: ObservableObject {
     }
 }
 
-// MARK: - 3) CustomNavigationView: ZStack ile stack render
+// MARK: - 3) Custom Navigation View rendering the page stack using ZStack
 struct CustomNavigationView: View {
     @StateObject private var router = Router.instance
 
     var body: some View {
         ZStack {
             ForEach(router.pages, id: \ .id) { page in
+                let isTop = page.id == router.pages.last?.id
                 page.buildView()
-                    .disabled(page.id != router.pages.last?.id)
-                    .opacity(page.id == router.pages.last?.id ? 1 : 0)
-                    .animation(.default, value: router.pages.map(\.id))
+                    .disabled(!isTop)
+                    .opacity(isTop ? 1 : 0)
+                    .animation(.default, value: router.pages.map(\ .id))
             }
         }
     }
 }
 
-// MARK: - 4) Örnek destination View’ler
+// MARK: - 4) Example Views to demonstrate navigation
 struct HomeView: View {
     var body: some View {
         VStack(spacing: 20) {
@@ -172,7 +173,7 @@ struct DetailView: View {
     }
 }
 
-// MARK: - 5) Örnek App Struct
+// MARK: - 5) App Entry Point
 @main
 struct RouterApp: App {
     var body: some Scene {
